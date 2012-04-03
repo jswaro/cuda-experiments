@@ -4,8 +4,8 @@
 #include <cstdlib>
 #include <stdlib.h>
 #include <ctime>
-#include <cuda.h>
 #include "matrix.h"
+#include <cuda_runtime.h>
 #include <math.h>
 
 using namespace std;
@@ -74,6 +74,8 @@ void matrixMul( size_t c, float* m1, float* m2, float* result ) {
 
 
 int main( int argc, char** argv ) {
+    //cudaSetDevice(1);
+
     srand(time(NULL));
     int rows, cols;
     float* m1 = NULL;
