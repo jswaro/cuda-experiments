@@ -1,12 +1,9 @@
-PROJECT=
+PROJECT=matrix
 
 all: ${PROJECT}
 
-${PROJECT}: ${PROJECT}.o ${PROJECT}.cc
-	nvcc -o ${PROJECT} ${PROJECT}.o ${PROJECT}.cc
+matrix: 
+	touch matrix.out
 
-${PROJECT}.o: ${PROJECT}.cu
-	nvcc -c ${PROJECT}.cu
-
-clean:
-	rm ${PROJECT} *.o 
+clean:  
+	rm ${PROJECT} 

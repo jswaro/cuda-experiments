@@ -22,7 +22,7 @@ int main(void)
   cudaPrintfInit();
 
   // launch a kernel with a single thread to greet from the device
-  device_greetings<<<1,1>>>();
+  device_greetings<<<1,128>>>();
 
   // display the device's greeting
   cudaPrintfDisplay();
