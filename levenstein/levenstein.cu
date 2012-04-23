@@ -1,4 +1,4 @@
-#include "matrix.h"
+#include "levenstein.h"
 #include <cuda.h>
 
 __global__ void matrixMulKernel(float* Md, float* Nd, float* Rd, int size) {
