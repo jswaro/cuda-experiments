@@ -24,6 +24,9 @@ typedef struct alignm_struct {
 	int             cost;
 }               alignm_struct;
 
+//#define TESTCUDA
+#define TESTLENGTH 10000
+
 int min3(int a, int b, int c);
 void alloc_dist_matrix(int m, int n);
 void destroy_dist_matrix(int m, int n);
@@ -36,6 +39,7 @@ int __determine_alignment(int i, int j, alignm_struct * alignment);
 int LevenshteinDistance(char *s, int m, char *t, int n);
 
 int retile(char* &c, int n);
+void parallelLevenshtein(char* s1, char* s2, int* &result, int size);
 
 int main( int argc, char** argv ) {
     //cudaSetDevice(1);
@@ -71,25 +75,21 @@ int main( int argc, char** argv ) {
 
     m = ARRSIZE;
     n = ARRSIZE;
+    
+#ifdef TESTCUDA
 
     parallelDist = new int[(ARRSIZE+1)*(ARRSIZE+1)];
     memset(parallelDist,0,sizeof(int)*(ARRSIZE+1)*(ARRSIZE+1));
-    
+    for( int z = 0; z < TESTLENGTH; ++z) {
     levenshteinCuda(s1,s2, parallelDist,ARRSIZE);
+#else
 
-
-    for(int i = 0; i <= ARRSIZE; i++) { //for each row
-        char r[20000];
-        for(int j = 0; j <= 2; j++) { //for each column
-            printf("%i ", parallelDist[index(i,j)]);
-        }
-        printf("\n");
-    }
-
-
-    /*alloc_dist_matrix(m, n);
+    alloc_dist_matrix(m, n);
+    for( int z = 0; z < TESTLENGTH; ++z) {
     dist = LevenshteinDistance(s, m, t, n);
-    printf("Edit Distance of %s and %s = %d\n\n",
+#endif
+    }
+    /*printf("Edit Distance of %s and %s = %d\n\n",
 	       s, t, dist);
 
     determine_alignment(s, m, t, n);
@@ -164,7 +164,7 @@ determine_alignment(char *s, int m, char *t, int n)
 		}
 	}
 
-	printf("Alignment Matrix: \n");
+	/*printf("Alignment Matrix: \n");
 
 	for(k = 0; alignment[k].type != UNDEFINED && k < m + n; k++){
 		printf("%c\t", alignment[k].seqelem[0]);
@@ -173,7 +173,7 @@ determine_alignment(char *s, int m, char *t, int n)
 	for(k = 0; alignment[k].type != UNDEFINED && k < m + n; k++){
 		printf("%c\t", alignment[k].seqelem[1]);
 	}
-	printf("\n");
+	printf("\n");*/
 }
 //This function implements a heuristic to determine an alignment
 // from the edit distance matrix
@@ -276,17 +276,66 @@ LevenshteinDistance(char *s, int m, char *t, int n)
 
 		}
 
-	printf("Edit Distance Matrix: \n\n");
+	/*printf("Edit Distance Matrix: \n\n");
 	for (i = 0; i < m + 1; i++) {
 		for (j = 0; j < n + 1; j++) {
 			printf("%d\t", dist[i][j]);
 		}
-
-		printf("\n");
+                printf("\n");
 	}
-	printf("\n\n");
+	printf("\n\n");*/
 
 	cost = dist[m][n];
 	return cost;
 }
 
+void parallelLevenshtein(char* s1, char* s2, int* &result, int size) {
+    //Not really parallel
+
+    for(int i = 0; i <= ARRSIZE; ++i) //for each element in the first column
+        result[getIndex(i,0)] = i;
+
+    for (int i = 0; i <= ARRSIZE; i++)
+        result[getIndex(0,i)] = i;
+
+    //int i = threadIdx.x + 1;  //column
+    int Rprev[ARRSIZE];
+    int Rs[ARRSIZE];
+    int* Rd = result;
+    for(int i = 0; i < ARRSIZE; ++i)
+        Rprev[i] = Rs[i] = Rd[i];
+
+    int i;                    //column
+    int j;                    //row
+
+    for(int k = 2; k < (2 * size) - 1; ++k) {
+        for(int x = 0; x < 5; ++x) { //x serves as threadIdx.x
+            i = x + 1;
+            //j = k - threadIdx.x;
+            j = k - x - 1;
+
+            if( j > 0 && j < size)
+            {
+                //Rs[threadIdx.x] = MIN( (Rd[index(j, i - 1)] + 1),
+                //                       (Rprev[threadIdx.x] + 1) );
+
+
+                Rs[x]           = MIN( (Rd[getIndex(i, j - 1)] + 1),
+                                       (Rd[getIndex(i-1, j)] + 1)   );
+                Rd[getIndex(i,j)]  = MIN( (Rs[x]),
+                                       (Rd[getIndex(i-1,j-1)] + ((s1[i-1]!=s2[j-1])&1)) );
+                Rs[x] = Rd[getIndex(i,j)];
+                    
+                //Rd[index(j,i)]  = MIN( (Rs[threadIdx.x]),
+                //                       (Rd[index(j-1,i-1)] + ((Mds[i-1]==Nds[j-1])&1)) );
+            } else {
+                //printf("Thread %i, %i %i\n", x, i, j);
+            }
+
+            //__syncthreads();
+            Rprev[x] = Rs[x];
+            //Rprev[threadIdx.x] = Rs[threadIdx.x];
+            //__syncthreads();
+        }
+    }
+}
