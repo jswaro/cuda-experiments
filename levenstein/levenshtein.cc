@@ -75,17 +75,30 @@ int main( int argc, char** argv ) {
     m = ARRSIZE;
     n = ARRSIZE;
     
-#ifdef TESTCUDA
+//#ifdef TESTCUDA
 
     parallelDist = new int[(ARRSIZE+1)*(ARRSIZE+1)];
     memset(parallelDist,0,sizeof(int)*(ARRSIZE+1)*(ARRSIZE+1));
     
     levenshteinCuda(s1,s2, parallelDist,ARRSIZE);
-#else
+
+    for(int row = 0; row <= ARRSIZE;++row) {
+        if(row > 1000) {
+            for(int col = 0; col <= ARRSIZE;++col) {
+                if(col > 1000)
+                printf("%d\t", parallelDist[getIndex(row,col)]);
+            }
+            printf("\n");
+        }
+    }
+///#else
 
     alloc_dist_matrix(m, n);
+#ifdef TESTING
     for( int z = 0; z < TESTLENGTH; ++z) {
+#endif
         dist = LevenshteinDistance(s, m, t, n);
+#ifdef TESTING
     }
 #endif
    
@@ -276,14 +289,15 @@ LevenshteinDistance(char *s, int m, char *t, int n)
 
 		}
 
-	/*printf("Edit Distance Matrix: \n\n");
+	printf("Edit Distance Matrix: \n\n");
 	for (i = 0; i < m + 1; i++) {
 		for (j = 0; j < n + 1; j++) {
+                    if( j > 1000)
 			printf("%d\t", dist[i][j]);
 		}
                 printf("\n");
 	}
-	printf("\n\n");*/
+	printf("\n\n");
 
 	cost = dist[m][n];
 	return cost;
@@ -320,8 +334,8 @@ void parallelLevenshtein(char* s1, char* s2, int* &result, int size) {
                 //                       (Rprev[threadIdx.x] + 1) );
 
 
-                Rs[x]           = MIN( (Rd[getIndex(i, j - 1)] + 1),
-                                       (Rd[getIndex(i-1, j)] + 1)   );
+                Rs[x]           = MIN( (Rd[getIndex(i  ,j-1)] + 1),
+                                       (Rd[getIndex(i-1,  j)] + 1)   );
                 Rd[getIndex(i,j)]  = MIN( (Rs[x]),
                                        (Rd[getIndex(i-1,j-1)] + ((s1[i-1]!=s2[j-1])&1)) );
                 Rs[x] = Rd[getIndex(i,j)];
