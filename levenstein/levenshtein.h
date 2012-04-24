@@ -5,6 +5,8 @@
 #define TILES_PER_BLOCK 2
 #define MAX_BLOCKS 8
 #define WARP_MAX 32
+#define TESTCUDA
+#define TESTLENGTH 10000
 
 #define MIN(a,b) (a-((a-b)&(b-a)>>31))
 #define MAX(a,b) (a-((a-b)&(a-b)>>31))

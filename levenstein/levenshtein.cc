@@ -24,8 +24,7 @@ typedef struct alignm_struct {
 	int             cost;
 }               alignm_struct;
 
-//#define TESTCUDA
-#define TESTLENGTH 10000
+
 
 int min3(int a, int b, int c);
 void alloc_dist_matrix(int m, int n);
@@ -80,15 +79,16 @@ int main( int argc, char** argv ) {
 
     parallelDist = new int[(ARRSIZE+1)*(ARRSIZE+1)];
     memset(parallelDist,0,sizeof(int)*(ARRSIZE+1)*(ARRSIZE+1));
-    for( int z = 0; z < TESTLENGTH; ++z) {
+    
     levenshteinCuda(s1,s2, parallelDist,ARRSIZE);
 #else
 
     alloc_dist_matrix(m, n);
     for( int z = 0; z < TESTLENGTH; ++z) {
-    dist = LevenshteinDistance(s, m, t, n);
-#endif
+        dist = LevenshteinDistance(s, m, t, n);
     }
+#endif
+   
     /*printf("Edit Distance of %s and %s = %d\n\n",
 	       s, t, dist);
 

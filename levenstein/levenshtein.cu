@@ -70,8 +70,10 @@ __host__ void levenshteinCuda(char* s1, char* s2, int* &result, size_t size) {
     cudaMemcpy(Sd, s1,     (size * sizeof(char)), cudaMemcpyHostToDevice);
     cudaMemcpy(Td, s2,     (size * sizeof(char)), cudaMemcpyHostToDevice);
     cudaMemcpy(Rd, result, (arrSize * sizeof(int)),  cudaMemcpyHostToDevice);
-   
-    levenshteinKernel<<<dimGrid, dimBlock>>>(Sd,Td,Rd,size);
+
+    for( int z = 0; z < TESTLENGTH; ++z) {
+        levenshteinKernel<<<dimGrid, dimBlock>>>(Sd,Td,Rd,size);
+    }
 
     cudaMemcpy(result, Rd, (arrSize * sizeof(int)), cudaMemcpyDeviceToHost);
 
