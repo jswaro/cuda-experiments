@@ -19,9 +19,9 @@ __device__ int tiledIndex(int row, int column) {
 __global__ void levenshteinKernel(char* Md, char* Nd, int* Rd, int size) {
     __shared__ char Nds[ARRSIZE];   //Shared Nd character memory
     __shared__ int  Rs[ARRSIZE];    //Shared current min value memory
-    int i = threadIdx.x + 1;        //column
-    int j;                          //row
-    char Mdt = Md[threadIdx.x];
+    int col = threadIdx.x + 1;        //column
+    int row;                          //row
+    char Mdt = Md[threadIdx.x];     //Character for this column
     
     Nds[threadIdx.x]   = Nd[threadIdx.x];
     Rs[threadIdx.x]    = Rd[threadIdx.x];
@@ -29,13 +29,13 @@ __global__ void levenshteinKernel(char* Md, char* Nd, int* Rd, int size) {
     __syncthreads();
 
     for(int k = 2; k < (2 * size) + 1; ++k) { 
-        j = k - threadIdx.x;
-        if( j > 0 && j <= size)
+        row = k - threadIdx.x;
+        if( row > 0 && row <= size)
         {
-            Rs[threadIdx.x]   = __min( (Rd[__index(j-1,i)] + 1),
-                                       (Rd[__index(j,i-1)] + 1 )   );
-            Rd[__index(j,i)]  = __min( (Rs[threadIdx.x]),
-                                       (Rd[__index(j-1,i-1)] + ((Mdt!=Nds[j-1])&1)) );
+            Rs[threadIdx.x]       = __min( (Rd[__index(row-1,col)] + 1),
+                                           (Rd[__index(row,col-1)] + 1 ) );
+            Rd[__index(row,col)]  = __min( (Rs[threadIdx.x]),
+                                           (Rd[__index(row-1,col-1)] + ((Mdt!=Nds[row-1])&1)) );
             /*
             Rs[threadIdx.x]   = __min( (Rd[__index(i,j-1)] + 1),
                                        (Rd[__index(i-1,j)] + 1 )   );

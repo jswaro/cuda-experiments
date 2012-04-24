@@ -80,7 +80,7 @@ int main( int argc, char** argv ) {
     parallelDist = new int[(ARRSIZE+1)*(ARRSIZE+1)];
     memset(parallelDist,0,sizeof(int)*(ARRSIZE+1)*(ARRSIZE+1));
     
-    levenshteinCuda(s1,s2, parallelDist,ARRSIZE);
+    levenshteinCuda(s2,s1, parallelDist,ARRSIZE);
 
     for(int row = 0; row <= ARRSIZE;++row) {
         if(row > 1000) {
@@ -97,7 +97,7 @@ int main( int argc, char** argv ) {
 #ifdef TESTING
     for( int z = 0; z < TESTLENGTH; ++z) {
 #endif
-        dist = LevenshteinDistance(s, m, t, n);
+    dist = LevenshteinDistance(s, m, t, n);
 #ifdef TESTING
     }
 #endif
@@ -291,11 +291,13 @@ LevenshteinDistance(char *s, int m, char *t, int n)
 
 	printf("Edit Distance Matrix: \n\n");
 	for (i = 0; i < m + 1; i++) {
+            if( i > 1000 ) {
 		for (j = 0; j < n + 1; j++) {
                     if( j > 1000)
 			printf("%d\t", dist[i][j]);
 		}
                 printf("\n");
+            }
 	}
 	printf("\n\n");
 
