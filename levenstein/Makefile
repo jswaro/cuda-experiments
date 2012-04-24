@@ -1,4 +1,4 @@
-PROJECT=levenstein
+PROJECT=levenshtein
 
 all: ${PROJECT}
 
