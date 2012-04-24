@@ -11,21 +11,21 @@ __device__ int __min(int a, int b) {
     return ((a)-(((a)-(b))&((b)-(a))>>31));
 }
 
-__device__ int tiledIndex(int row, int column) {
-    return 0;
+__device__ int tiledIndex(int row, int column, int width) {
+    return (((((row<=width)&&(row>0))&&((col<=width)&&(col>0)))*0xffffffff)& \
+            (((((row+col)*(row+col+1))/2)+col+1)));
 }
 
 
 __global__ void levenshteinKernel(char* Md, char* Nd, int* Rd, int size) {
     __shared__ char Nds[ARRSIZE];   //Shared Nd character memory
     __shared__ int  Rs[ARRSIZE];    //Shared current min value memory
-    int col = threadIdx.x + 1;        //column
-    int row;                          //row
+    int col = threadIdx.x + 1;      //column
+    int row;                        //row
     char Mdt = Md[threadIdx.x];     //Character for this column
     
     Nds[threadIdx.x]   = Nd[threadIdx.x];
-    Rs[threadIdx.x]    = Rd[threadIdx.x];
-
+    Rs[threadIdx.x]    = Rd[__index(0,col)];
     __syncthreads();
 
     for(int k = 2; k < (2 * size) + 1; ++k) { 
@@ -36,13 +36,7 @@ __global__ void levenshteinKernel(char* Md, char* Nd, int* Rd, int size) {
                                            (Rd[__index(row,col-1)] + 1 ) );
             Rd[__index(row,col)]  = __min( (Rs[threadIdx.x]),
                                            (Rd[__index(row-1,col-1)] + ((Mdt!=Nds[row-1])&1)) );
-            /*
-            Rs[threadIdx.x]   = __min( (Rd[__index(i,j-1)] + 1),
-                                       (Rd[__index(i-1,j)] + 1 )   );
-            Rd[__index(i,j)]  = __min( (Rs[threadIdx.x]),
-                                       (Rd[__index(i-1,j-1)] + ((Mdt!=Nds[j-1])&1)) );*/
         }
-
         __syncthreads();
     }    
 }
@@ -96,4 +90,10 @@ __host__ int getIndex(int row , int col)
 __host__ int getMin(int a, int b)
 {
     return (a-((a-b)&(b-a)>>31));
+}
+
+__host__ int getTiledIndex(int row, int col, int width)
+{
+    return (((((row<=width)&&(row>0))&&((col<=width)&&(col>0)))*0xffffffff)& \
+            (((((row+col)*(row+col+1))/2)+col+1)));
 }
