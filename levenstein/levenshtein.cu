@@ -2,7 +2,7 @@
 #include <cuda.h>
 #include <math.h>
 
-#define index(i,j) ((i * ARRSIZE) + j)
+
 
 
 __global__ void levenshteinKernel(char* Md, char* Nd, int* Rd, int size) {
@@ -39,8 +39,7 @@ __global__ void levenshteinKernel(char* Md, char* Nd, int* Rd, int size) {
     
 }
 
-__host__ void levenshteinCuda(char* s1, char* s2, int** &result,
-        size_t size) {
+__host__ void levenshteinCuda(char* s1, char* s2, int* &result, size_t size) {
     //Assumption is made that the size is a multiple of tile size
     dim3 dimGrid(1, 1);
     dim3 dimBlock(ARRSIZE, 1);
@@ -48,15 +47,15 @@ __host__ void levenshteinCuda(char* s1, char* s2, int** &result,
     char* Sd;
     char* Td;
     int*  Rd;
-    size_t arrSize = ARRSIZE * ARRSIZE;
+    size_t arrSize = (ARRSIZE+1) * (ARRSIZE+1);
     Sd = Td = NULL;
     Rd = NULL;
 
-    for (int i = 0; i < ARRSIZE + 1; i++)
-        result[i][0] = i;
+    for(int i = 0; i <= ARRSIZE; ++i) //for each element in the first column
+        result[index(i,0)] = i;
 
-    for (int i = 0; i < ARRSIZE + 1; i++)
-        result[0][i] = i;
+    for (int i = 0; i <= ARRSIZE; i++)
+        result[index(0,i)] = i;
 
     cudaMalloc((void**) &Sd, (size *   sizeof(char)));
     cudaMalloc((void**) &Td, (size *   sizeof(char)));
@@ -66,9 +65,9 @@ __host__ void levenshteinCuda(char* s1, char* s2, int** &result,
     cudaMemcpy(Td, s2,     (size * sizeof(char)), cudaMemcpyHostToDevice);
     cudaMemcpy(Rd, result, (arrSize * sizeof(int)),  cudaMemcpyHostToDevice);
    
-    levenshteinKernel<<<dimGrid, dimBlock>>>(Sd,Td,Rd,size);
+    //levenshteinKernel<<<dimGrid, dimBlock>>>(Sd,Td,Rd,size);
 
-    cudaMemcpy(result, Rd, (arrSize * sizeof(size_t)), cudaMemcpyDeviceToHost);
+    //cudaMemcpy(result, Rd, (arrSize * sizeof(size_t)), cudaMemcpyDeviceToHost);
 
     cudaFree(Sd);
     cudaFree(Td);

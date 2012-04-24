@@ -47,7 +47,7 @@ int main( int argc, char** argv ) {
     int             i;
     char*           s1 = new char[1024];
     char*           s2 = new char[1024];
-    int**           parallelDist;
+    int*           parallelDist;
 
     s = s1;
     t = s2;
@@ -72,14 +72,22 @@ int main( int argc, char** argv ) {
     m = ARRSIZE;
     n = ARRSIZE;
 
-    parallelDist = new int*[ARRSIZE];
-    for(int x = 0; x < ARRSIZE; ++x)
-    {
-        parallelDist[x] = new int[ARRSIZE];
-        memset(parallelDist[x],0,sizeof(int)*ARRSIZE);
+    parallelDist = new int[(ARRSIZE+1)*(ARRSIZE+1)];
+    memset(parallelDist,0,sizeof(int)*(ARRSIZE+1)*(ARRSIZE+1));
+    
+    levenshteinCuda(s1,s2, parallelDist,ARRSIZE);
+
+
+    for(int i = 0; i <= ARRSIZE; i++) { //for each row
+        char r[20000];
+        for(int j = 0; j <= 2; j++) { //for each column
+            printf("%i ", parallelDist[index(i,j)]);
+        }
+        printf("\n");
     }
 
-    alloc_dist_matrix(m, n);
+
+    /*alloc_dist_matrix(m, n);
     dist = LevenshteinDistance(s, m, t, n);
     printf("Edit Distance of %s and %s = %d\n\n",
 	       s, t, dist);
@@ -90,7 +98,7 @@ int main( int argc, char** argv ) {
     printf("\n\nSequence Similarity based on [ \"An Information-Theoretic Definition of Similarity\", Dekang Lin, Department of Computer Science, University of Manitoba]:\n\n");
     printf("Similariy = sim(x,y) = 1/( 1 + editDist(x,y)) = %f\n", 1.0/(1.0 + (float)dist));
 
-    destroy_dist_matrix(m, n);
+    destroy_dist_matrix(m, n);*/
 
     
     return EXIT_SUCCESS;
@@ -166,7 +174,6 @@ determine_alignment(char *s, int m, char *t, int n)
 		printf("%c\t", alignment[k].seqelem[1]);
 	}
 	printf("\n");
-
 }
 //This function implements a heuristic to determine an alignment
 // from the edit distance matrix
