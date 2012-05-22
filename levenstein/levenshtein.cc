@@ -18,6 +18,7 @@
 using namespace std;
 
 int           **dist;
+int           *retiled;
 typedef struct alignm_struct {
 	char            seqelem[2];
 	int             type;
@@ -40,6 +41,20 @@ int LevenshteinDistance(char *s, int m, char *t, int n);
 int retile(char* &c, int n);
 void parallelLevenshtein(char* s1, char* s2, int* &result, int size);
 
+int tiledIndex(int i , int j, int n)
+{
+	int rval;
+	if(!(i >= 0 && i <=n && j >= 0 && j <=n) ) {
+		rval = 0;
+	} else if((i+j) < n) {
+		rval = (((i+j)*(i+j+1))/2) + j;
+	} else {
+		rval = (n*n) - (((2*n - (i+j))*(2*n - (i+j+1)))/2) +
+			(j - ((j+i) - n)) - 1;
+	}
+	return rval;
+}	
+
 int main( int argc, char** argv ) {
     //cudaSetDevice(1);
     int             dist;
@@ -51,6 +66,7 @@ int main( int argc, char** argv ) {
     char*           s1 = new char[1024];
     char*           s2 = new char[1024];
     int*           parallelDist;
+    retiled = new int[(ARRSIZE +1) * (ARRSIZE + 1)];
 
     s = s1;
     t = s2;
@@ -80,9 +96,9 @@ int main( int argc, char** argv ) {
     parallelDist = new int[(ARRSIZE+1)*(ARRSIZE+1)];
     memset(parallelDist,0,sizeof(int)*(ARRSIZE+1)*(ARRSIZE+1));
     
-    levenshteinCuda(s2,s1, parallelDist,ARRSIZE);
+    //levenshteinCuda(s2,s1, parallelDist,ARRSIZE);
 
-    for(int row = 0; row <= ARRSIZE;++row) {
+    /*for(int row = 0; row <= ARRSIZE;++row) {
         if(row > 1000) {
             for(int col = 0; col <= ARRSIZE;++col) {
                 if(col > 1000)
@@ -90,7 +106,7 @@ int main( int argc, char** argv ) {
             }
             printf("\n");
         }
-    }
+    }*/
 ///#else
 
     alloc_dist_matrix(m, n);
@@ -270,11 +286,14 @@ LevenshteinDistance(char *s, int m, char *t, int n)
 	//d is a table with m + 1 rows and n + 1 columns
 	int             i, j, cost, min;
 
+        retiled[0] = 0;
 	for (i = 0; i < m + 1; i++)
-		dist[i][0] = i;
+		//dist[i][0] = i;
+            retiled[tiledIndex(i,0,ARRSIZE)] = i;
 
 	for (i = 0; i < n + 1; i++)
-		dist[0][i] = i;
+		//dist[0][i] = i;
+            retiled[tiledIndex(0,i,ARRSIZE)] = i;
 
 
 	for (i = 1; i < m + 1; i++)
@@ -284,12 +303,14 @@ LevenshteinDistance(char *s, int m, char *t, int n)
 			else
 				cost = 1;
 
-			dist[i][j] = min3(dist[i - 1][j] + 1, dist[i][j - 1] + 1, dist[i - 1][j - 1] + cost);
-
+			//dist[i][j] = min3(dist[i - 1][j] + 1, dist[i][j - 1] + 1, dist[i - 1][j - 1] + cost);
+                        retiled[tiledIndex(i,j,ARRSIZE)] = min3(retiled[tiledIndex(i - 1,j,ARRSIZE)] + 1,
+                                                                retiled[tiledIndex(i,j - 1,ARRSIZE)] + 1,
+                                                                retiled[tiledIndex(i - 1,j - 1,ARRSIZE)] + cost);
 
 		}
 
-	printf("Edit Distance Matrix: \n\n");
+	/*printf("Edit Distance Matrix: \n\n");
 	for (i = 0; i < m + 1; i++) {
             if( i > 1000 ) {
 		for (j = 0; j < n + 1; j++) {
@@ -299,9 +320,10 @@ LevenshteinDistance(char *s, int m, char *t, int n)
                 printf("\n");
             }
 	}
-	printf("\n\n");
+	printf("\n\n");*/
 
-	cost = dist[m][n];
+	//cost = dist[m][n];
+        cost = retiled[tiledIndex(m,n,ARRSIZE)];
 	return cost;
 }
 
