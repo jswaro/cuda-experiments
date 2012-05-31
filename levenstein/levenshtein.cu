@@ -22,59 +22,96 @@ __device__ int __index(int i , int j, int n)
 	return rval;
 }
 
-__global__ void levenshteinKernel(char* Md, char* Nd, int* Rd, int size) {
-    __shared__ char Nds[ARRSIZE];   //Shared Nd character memory
-    __shared__ int  Rs[ARRSIZE];    //Shared current min value memory
-    int col = threadIdx.x + 1;      //column
-    int row;                        //row
-    char Mdt = Md[threadIdx.x];     //Character for this column
+__global__ void levenshteinKernel(
+        char* Md,        /* Md character array in device memory         */
+        char* Nd,        /* Nd character array in device memory         */
+        int*  Rd,        /* result array in device memory               */
+        int   size,      /* linear size of the result array             */
+        int   blocks,    /* number of blocks instantiated by the kernel */
+        int   blocksize, /* the size that each block is responsible for */
+        int*  phase      /* phase each blockID is operating on          */
+  )
+{
+    __shared__ char Nds[BLOCKSIZE];   //Shared Nd character memory
+    __shared__ int  Rs[BLOCKSIZE];    //Shared current min value memory
+    int col = (blockIdx.x * BLOCKSIZE) + (threadIdx.x + 1);      //column
+    int row;                          //row
+    char Mdt = Md[col - 1];           //Character for this column
 
     Rd[0] = 0;
+    if( threadIdx.x == 0)
+        phase[blockIdx.x] = 0;
 
     Rd[__index(0, col,size)] = col;
     Rd[__index(col, 0,size)] = col;
-    
-    Nds[threadIdx.x]   = Nd[threadIdx.x];
-    Rs[threadIdx.x]    = Rd[__index(0,col,size)];
+    Nds[threadIdx.x]         = Nd[threadIdx.x];
+    Rs[threadIdx.x]          = Rd[__index(0,col,size)];
     __syncthreads();
 
-    
-    for(int k = 2; k < (2 * size) + 1; ++k) {
-        row = k - threadIdx.x;
-        if( row > 0 && row <= size && col > 0 && col <= size )
+    for(int t = 0; t < blocks ; ++t)
+    {
+        if( blockIdx.x > 0 )
         {
-            Rs[threadIdx.x]       = __min(
-                    (Rd[__index(row-1,col,size)] + 1),
-                    (Rd[__index(row,col-1,size)] + 1 ) );
-            Rd[__index(row,col,size)]  = __min(
-                    (Rs[threadIdx.x]),
-                    (Rd[__index(row-1,col-1,size)] + ((Mdt!=Nds[row-1])&1)) );
+            //While the previous block is working on the same block row, wait.
+            while( phase[blockIdx.x - 1] <= t  )
+            {
+                ;
+            }
         }
+
+        for(int k = 0; k < (2 * blocksize) + 1; ++k) {
+            row = (t * blocksize) + (k - threadIdx.x);
+            if( row > 0 && row <= size && col > 0 && col <= size &&
+                (k - (int)threadIdx.x) >= 0 &&
+                (k - (int)threadIdx.x) < blocksize )
+            {
+                Rs[threadIdx.x]            = __min(
+                        (Rd[__index(row-1,col,size)] + 1),
+                        (Rd[__index(row,col-1,size)] + 1 ) );
+                Rd[__index(row,col,size)]  = __min(
+                        (Rs[threadIdx.x]),
+                        (Rd[__index(row-1,col-1,size)] + ((Mdt!=Nds[row-1])&1)) );
+            }
+            __syncthreads();
+        }
+
+        if( (t + 1) < blocks)
+            Nds[threadIdx.x]   = Nd[(t * blocksize) + threadIdx.x];
+
+        if( threadIdx.x == 0 )
+            phase[blockIdx.x]++;
+
         __syncthreads();
     }
 }
 
 __host__ void levenshteinCuda(char* s1, char* s2, int* &result, size_t size) {
-    //Assumption is made that the size is a multiple of tile size
-    dim3 dimGrid(1, 1);
-    dim3 dimBlock(size, 1);
-    
+    //Assumption is made that the size is a multiple of tile size    
     char* Sd;
     char* Td;
     int*  Rd;
+    int*  phase;
     size_t arrSize = (size+1) * (size+1);
     Sd = Td = NULL;
     Rd = NULL;
+    int blocks = ceil(size / ((float) BLOCKSIZE));
+
+    dim3 dimGrid(blocks,1);
+    dim3 dimBlock(BLOCKSIZE,1);
+
 
     cudaMalloc((void**) &Sd, (size *   sizeof(char)));
     cudaMalloc((void**) &Td, (size *   sizeof(char)));
     cudaMalloc((void**) &Rd, (arrSize *    sizeof(int)));
+    cudaMalloc((void**) &phase, sizeof(int) * blocks);
 
     cudaMemcpy(Sd, s1,     (size * sizeof(char)), cudaMemcpyHostToDevice);
     cudaMemcpy(Td, s2,     (size * sizeof(char)), cudaMemcpyHostToDevice);
     cudaMemset(Rd, 0, arrSize * sizeof(int));
+    cudaMemset(phase, 0, sizeof(int) * blocks);
 
-    levenshteinKernel<<<dimGrid, dimBlock>>>(Sd,Td,Rd,size+1);
+    levenshteinKernel<<<dimGrid, dimBlock>>>(Sd, Td, Rd, size+1,
+            blocks, BLOCKSIZE, phase);
 
     cudaMemcpy(result, Rd, (arrSize * sizeof(int)), cudaMemcpyDeviceToHost);
 
