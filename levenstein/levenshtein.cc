@@ -94,25 +94,15 @@ int main( int argc, char** argv ) {
     m = ARRSIZE;
     n = ARRSIZE;
 
-    for(int x = 0; x <= ARRSIZE; ++x)
-    {
-        for(int y = 0; y <= ARRSIZE; ++y)
-        {
-            fprintf(outfileParallel, "%.8d    ", tiledIndex(x,y,ARRSIZE));
-        }
-        fprintf(outfileParallel, "\n");
-
-    }
-    exit(0);
-
     parallelDist = new int[(ARRSIZE+1)*(ARRSIZE+1)];
     memset(parallelDist,0,sizeof(int)*(ARRSIZE+1)*(ARRSIZE+1));
-    
+
     levenshteinCuda(s2,s1, parallelDist,ARRSIZE);
 
     for(int row = 0; row <= ARRSIZE;++row) {
         if( row > 5)
             continue;
+        
             printf("\nRow %.4d\n", row);
         //fprintf(outfileParallel, "Row %.4d\n", row);
         for(int col = 0; col <= ARRSIZE;++col) {            
@@ -321,13 +311,13 @@ LevenshteinDistance(char *s, int m, char *t, int n)
 		}
 
 	//printf("Edit Distance Matrix: \n\n");
-	for (i = 0; i < m + 1; i++) {
+	//for (i = 0; i < m + 1; i++) {
             //fprintf(outfileSequential, "Row %.4d\n", i);
-            for (j = 0; j < n + 1; j++) {
-		fprintf(outfileSequential,"[%d][%d] = %.4d\n", i, j, dist[i][j]);
-            }
+        //    for (j = 0; j < n + 1; j++) {
+	//	fprintf(outfileSequential,"[%d][%d] = %.4d\n", i, j, dist[i][j]);
+        //    }
             //printf("\n");
-	}
+//	}
 	//printf("\n\n");
         printf("Value at [%.4d][%.4d] = %.4d\n",m,n,dist[m][n]);
                 

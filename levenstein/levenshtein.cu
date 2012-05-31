@@ -11,11 +11,11 @@ __device__ int __index(int i , int j, int n)
 	int rval;
 	if(!(i >= 0 && i <=n && j >= 0 && j <=n) ) {
 		rval = 0;
-	} else if((i+j) <= n) {
+	} else if((i+j) < (n+1)) {
                 rval = (((i+j)*(i+j+1))/2) + j;
 	} else {
-		rval = (n*n) - (((2*n - (i+j))*(2*n - (i+j+1)))/2) +
-			(j - ((j+i) - n)) - 1;
+		rval = ((n+1)*(n+1)) - (((2*(n+1) - (i+j))*(2*(n+1) - (i+j+1)))/2) +
+			(j - ((j+i) - (n+1))) - 1;
 	}
 	return rval;
 }
@@ -28,23 +28,27 @@ __global__ void levenshteinKernel(char* Md, char* Nd, int* Rd, int size) {
     char Mdt = Md[threadIdx.x];     //Character for this column
 
     Rd[0] = 0;
-    Rd[__index(0, col,ARRSIZE)] = col;
-    Rd[__index(col, 0,ARRSIZE)] = col;
+
+    Rd[__index(0, col,size)] = col;
+    Rd[__index(col, 0,size)] = col;
+    
     Nds[threadIdx.x]   = Nd[threadIdx.x];
-    Rs[threadIdx.x]    = Rd[__index(0,col,ARRSIZE)];
+    Rs[threadIdx.x]    = Rd[__index(0,col,size)];
     __syncthreads();
 
-    for(int k = 2; k < (2 * size) + 1; ++k) { 
+    
+
+    for(int k = 2; k < (2 * size) + 1; ++k) {
         row = k - threadIdx.x;
-        if( row > 0 && row <= size)
+        if( row > 0 && row <= size && col > 0 && col <= size )
         {
-            Rs[threadIdx.x]       = __min( (Rd[__index(row-1,col,ARRSIZE)] + 1),
-                                           (Rd[__index(row,col-1,ARRSIZE)] + 1 ) );
-            Rd[__index(row,col,ARRSIZE)]  = __min( (Rs[threadIdx.x]),
-                                           (Rd[__index(row-1,col-1,ARRSIZE)] + ((Mdt!=Nds[row-1])&1)) );
+            Rs[threadIdx.x]       = __min( (Rd[__index(row-1,col,size)] + 1),
+                                           (Rd[__index(row,col-1,size)] + 1 ) );
+            Rd[__index(row,col,size)]  = __min( (Rs[threadIdx.x]),
+                                           (Rd[__index(row-1,col-1,size)] + ((Mdt!=Nds[row-1])&1)) );
         }
         __syncthreads();
-    }    
+    }
 }
 
 __host__ void levenshteinCuda(char* s1, char* s2, int* &result, size_t size) {
@@ -65,6 +69,7 @@ __host__ void levenshteinCuda(char* s1, char* s2, int* &result, size_t size) {
 
     cudaMemcpy(Sd, s1,     (size * sizeof(char)), cudaMemcpyHostToDevice);
     cudaMemcpy(Td, s2,     (size * sizeof(char)), cudaMemcpyHostToDevice);
+    cudaMemset(Rd, 0, arrSize * sizeof(int));
 
     levenshteinKernel<<<dimGrid, dimBlock>>>(Sd,Td,Rd,size);
 
