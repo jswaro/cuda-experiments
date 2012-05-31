@@ -19,6 +19,7 @@ using namespace std;
 
 int           **dist;
 int           *retiled;
+FILE* outfileSequential;
 typedef struct alignm_struct {
 	char            seqelem[2];
 	int             type;
@@ -46,11 +47,11 @@ int tiledIndex(int i , int j, int n)
 	int rval;
 	if(!(i >= 0 && i <=n && j >= 0 && j <=n) ) {
 		rval = 0;
-	} else if((i+j) < n) {
+	} else if((i+j) <= n) {
 		rval = (((i+j)*(i+j+1))/2) + j;
 	} else {
-		rval = (n*n) - (((2*n - (i+j))*(2*n - (i+j+1)))/2) +
-			(j - ((j+i) - n)) - 1;
+		rval = ((n+1)*(n+1)) - (((2*(n+1) - (i+j))*(2*(n+1) - (i+j+1)))/2) +
+			(j - ((j+i) - (n+1))) - 1;
 	}
 	return rval;
 }	
@@ -81,6 +82,8 @@ int main( int argc, char** argv ) {
 
     FILE* infile = fopen(argv[1], "r");
     FILE* modfile = fopen(argv[2], "r");
+    FILE* outfileParallel = fopen("out.parallel", "w");
+    outfileSequential = fopen("out.sequential", "w");
 
     size_t j = ARRSIZE;
     size_t k = ARRSIZE;
@@ -90,33 +93,40 @@ int main( int argc, char** argv ) {
 
     m = ARRSIZE;
     n = ARRSIZE;
-    
-//#ifdef TESTCUDA
+
+    for(int x = 0; x <= ARRSIZE; ++x)
+    {
+        for(int y = 0; y <= ARRSIZE; ++y)
+        {
+            fprintf(outfileParallel, "%.8d    ", tiledIndex(x,y,ARRSIZE));
+        }
+        fprintf(outfileParallel, "\n");
+
+    }
+    exit(0);
 
     parallelDist = new int[(ARRSIZE+1)*(ARRSIZE+1)];
     memset(parallelDist,0,sizeof(int)*(ARRSIZE+1)*(ARRSIZE+1));
     
-    //levenshteinCuda(s2,s1, parallelDist,ARRSIZE);
+    levenshteinCuda(s2,s1, parallelDist,ARRSIZE);
 
-    /*for(int row = 0; row <= ARRSIZE;++row) {
-        if(row > 1000) {
-            for(int col = 0; col <= ARRSIZE;++col) {
-                if(col > 1000)
-                printf("%d\t", parallelDist[getIndex(row,col)]);
-            }
-            printf("\n");
+    for(int row = 0; row <= ARRSIZE;++row) {
+        if( row > 5)
+            continue;
+            printf("\nRow %.4d\n", row);
+        //fprintf(outfileParallel, "Row %.4d\n", row);
+        for(int col = 0; col <= ARRSIZE;++col) {            
+            printf("%.4d\t", parallelDist[tiledIndex(row,col,ARRSIZE)]);
+            fprintf(outfileParallel,"[%d][%d] = %.4d\n", row, col, parallelDist[tiledIndex(row,col,ARRSIZE)]);
         }
-    }*/
-///#else
+        if(row > 1000)
+            printf("\n");
+        
+    }
+    printf("Parallel[%d][%d] = %d\n", ARRSIZE,ARRSIZE, parallelDist[tiledIndex(ARRSIZE,ARRSIZE,ARRSIZE)]);
 
     alloc_dist_matrix(m, n);
-#ifdef TESTING
-    for( int z = 0; z < TESTLENGTH; ++z) {
-#endif
     dist = LevenshteinDistance(s, m, t, n);
-#ifdef TESTING
-    }
-#endif
    
     /*printf("Edit Distance of %s and %s = %d\n\n",
 	       s, t, dist);
@@ -286,14 +296,14 @@ LevenshteinDistance(char *s, int m, char *t, int n)
 	//d is a table with m + 1 rows and n + 1 columns
 	int             i, j, cost, min;
 
-        retiled[0] = 0;
+        //retiled[0] = 0;
 	for (i = 0; i < m + 1; i++)
-		//dist[i][0] = i;
-            retiled[tiledIndex(i,0,ARRSIZE)] = i;
+		dist[i][0] = i;
+            //retiled[tiledIndex(i,0,ARRSIZE)] = i;
 
 	for (i = 0; i < n + 1; i++)
-		//dist[0][i] = i;
-            retiled[tiledIndex(0,i,ARRSIZE)] = i;
+		dist[0][i] = i;
+            //retiled[tiledIndex(0,i,ARRSIZE)] = i;
 
 
 	for (i = 1; i < m + 1; i++)
@@ -303,27 +313,26 @@ LevenshteinDistance(char *s, int m, char *t, int n)
 			else
 				cost = 1;
 
-			//dist[i][j] = min3(dist[i - 1][j] + 1, dist[i][j - 1] + 1, dist[i - 1][j - 1] + cost);
-                        retiled[tiledIndex(i,j,ARRSIZE)] = min3(retiled[tiledIndex(i - 1,j,ARRSIZE)] + 1,
-                                                                retiled[tiledIndex(i,j - 1,ARRSIZE)] + 1,
-                                                                retiled[tiledIndex(i - 1,j - 1,ARRSIZE)] + cost);
+			dist[i][j] = min3(dist[i - 1][j] + 1, dist[i][j - 1] + 1, dist[i - 1][j - 1] + cost);
+                        //retiled[tiledIndex(i,j,ARRSIZE)] = min3(retiled[tiledIndex(i - 1,j,ARRSIZE)] + 1,
+                        //                                        retiled[tiledIndex(i,j - 1,ARRSIZE)] + 1,
+                        //                                        retiled[tiledIndex(i - 1,j - 1,ARRSIZE)] + cost);
 
 		}
 
-	/*printf("Edit Distance Matrix: \n\n");
+	//printf("Edit Distance Matrix: \n\n");
 	for (i = 0; i < m + 1; i++) {
-            if( i > 1000 ) {
-		for (j = 0; j < n + 1; j++) {
-                    if( j > 1000)
-			printf("%d\t", dist[i][j]);
-		}
-                printf("\n");
+            //fprintf(outfileSequential, "Row %.4d\n", i);
+            for (j = 0; j < n + 1; j++) {
+		fprintf(outfileSequential,"[%d][%d] = %.4d\n", i, j, dist[i][j]);
             }
+            //printf("\n");
 	}
-	printf("\n\n");*/
-
-	//cost = dist[m][n];
-        cost = retiled[tiledIndex(m,n,ARRSIZE)];
+	//printf("\n\n");
+        printf("Value at [%.4d][%.4d] = %.4d\n",m,n,dist[m][n]);
+                
+	cost = dist[m][n];
+        //cost = retiled[tiledIndex(m,n,ARRSIZE)];
 	return cost;
 }
 
