@@ -23,14 +23,13 @@ __device__ int __index(int i , int j, int n)
 }
 
 __global__ void levenshteinKernel(
-        char* Md,        /* Md character array in device memory         */
-        char* Nd,        /* Nd character array in device memory         */
-        int*  Rd,        /* result array in device memory               */
-        int   size,      /* linear size of the result array             */
-        int   blocks,    /* number of blocks instantiated by the kernel */
-        int   blocksize, /* the size that each block is responsible for */
-        int*  phase      /* phase each blockID is operating on          */
-  )
+        char* Md,                 /* Md character array in device memory      */
+        char* Nd,                 /* Nd character array in device memory      */
+        int*  Rd,                 /* result array in device memory            */
+        int   size,               /* linear size of the result array          */
+        int   blocks,             /* number of blocks instantiated            */
+        int   blocksize           /* the size that each block is responsible  */
+ )
 {
     __shared__ char Nds[BLOCKSIZE];   //Shared Nd character memory
     __shared__ int  Rs[BLOCKSIZE];    //Shared current min value memory
@@ -40,7 +39,9 @@ __global__ void levenshteinKernel(
 
     Rd[0] = 0;
     if( threadIdx.x == 0)
+    {
         phase[blockIdx.x] = 0;
+    }
 
     Rd[__index(0, col,size)] = col;
     Rd[__index(col, 0,size)] = col;
@@ -50,14 +51,7 @@ __global__ void levenshteinKernel(
 
     for(int t = 0; t < blocks ; ++t)
     {
-        if( blockIdx.x > 0 )
-        {
-            //While the previous block is working on the same block row, wait.
-            while( phase[blockIdx.x - 1] <= t  )
-            {
-                ;
-            }
-        }
+        //Need to find some way to sync this block with the block before it
 
         for(int k = 0; k < (2 * blocksize) + 1; ++k) {
             row = (t * blocksize) + (k - threadIdx.x);
@@ -65,12 +59,17 @@ __global__ void levenshteinKernel(
                 (k - (int)threadIdx.x) >= 0 &&
                 (k - (int)threadIdx.x) < blocksize )
             {
-                Rs[threadIdx.x]            = __min(
+                /*Rs[threadIdx.x]            = __min(
                         (Rd[__index(row-1,col,size)] + 1),
                         (Rd[__index(row,col-1,size)] + 1 ) );
                 Rd[__index(row,col,size)]  = __min(
                         (Rs[threadIdx.x]),
-                        (Rd[__index(row-1,col-1,size)] + ((Mdt!=Nds[row-1])&1)) );
+                        (Rd[__index(row-1,col-1,size)] + ((Mdt!=Nds[row-1])&1)) );*/
+                if( blockIdx.x == 0 )
+                    Rd[__index(row,col,size)] = phase[blockIdx.x];
+                else
+                    Rd[__index(row,col,size)] = phase[blockIdx.x - 1];
+
             }
             __syncthreads();
         }
@@ -79,8 +78,8 @@ __global__ void levenshteinKernel(
             Nds[threadIdx.x]   = Nd[(t * blocksize) + threadIdx.x];
 
         if( threadIdx.x == 0 )
-            phase[blockIdx.x]++;
-
+            phase[blockIdx.x] += 1;
+        
         __syncthreads();
     }
 }
@@ -90,7 +89,7 @@ __host__ void levenshteinCuda(char* s1, char* s2, int* &result, size_t size) {
     char* Sd;
     char* Td;
     int*  Rd;
-    int*  phase;
+    unsigned int*  phase;
     size_t arrSize = (size+1) * (size+1);
     Sd = Td = NULL;
     Rd = NULL;
@@ -111,7 +110,7 @@ __host__ void levenshteinCuda(char* s1, char* s2, int* &result, size_t size) {
     cudaMemset(phase, 0, sizeof(int) * blocks);
 
     levenshteinKernel<<<dimGrid, dimBlock>>>(Sd, Td, Rd, size+1,
-            blocks, BLOCKSIZE, phase);
+            blocks, BLOCKSIZE);
 
     cudaMemcpy(result, Rd, (arrSize * sizeof(int)), cudaMemcpyDeviceToHost);
 

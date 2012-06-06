@@ -1,0 +1,15 @@
+The idea behind my implementation of the Levenshtein algorithm was to 
+move away from as many conditionals as possible. I could have removed the
+only conditional statement in the program outside of the loop but I feel
+that until I retile the memory, it would be unnecessary. 
+
+Memory relocation is the primary objective in this version of my 
+implementation. I have moved the character in each column into a local 
+variable for each thread, this should ideally reduce access speed time. I have
+also placed the other string in shared block memory as each thread in a given
+block will also use the same characters for computation. The speedup observed 
+with this program is approximately 30-40%, on a fixed size array of 1024x1024.
+The array sizing is suboptimal as it the program could be given a set of 
+strings that are very small, but that would be suboptimal for this kind of 
+problem anyway, so I made the array size the maximum for a block for the sake
+of simplicity. 

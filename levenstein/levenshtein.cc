@@ -94,22 +94,25 @@ int main( int argc, char** argv ) {
     m = ARRSIZE;
     n = ARRSIZE;
 
+#ifndef CUDA_NO_SM_11_ATOMIC_INTRINSICS
+    printf("WARNING! Not using atomics!\n");
+#endif
+
     parallelDist = new int[(ARRSIZE+1)*(ARRSIZE+1)];
     memset(parallelDist,0,sizeof(int)*(ARRSIZE+1)*(ARRSIZE+1));
 
     levenshteinCuda(s2,s1, parallelDist,ARRSIZE);
 
     for(int row = 0; row <= ARRSIZE;++row) {
-        if( row > 5)
+        if( row > 5 )
             continue;
-        
             printf("\nRow %.4d\n", row);
         //fprintf(outfileParallel, "Row %.4d\n", row);
-        for(int col = 0; col <= ARRSIZE;++col) {            
+        for(int col = 0; col <= ARRSIZE;++col) {
             printf("%.4d\t", parallelDist[tiledIndex(row,col,ARRSIZE)]);
             fprintf(outfileParallel,"[%d][%d] = %.4d\n", row, col, parallelDist[tiledIndex(row,col,ARRSIZE)]);
         }
-        if(row > 1000)
+
             printf("\n");
         
     }
